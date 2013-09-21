@@ -41,6 +41,16 @@ class PlayerAI():
 
 	def get_move(self, map_list, bombs, powerups, bombers, explosion_list, player_index, move_number):
 		'''
+		Wraps get_move_real to print out errors when an exception is raised.
+		'''
+		try:
+			return self.get_move_real(map_list, bombs, powerups, bombers, explosion_list, player_index, move_number)
+		except:
+			traceback.print_exc()
+			raise
+
+	def get_move_real(self, map_list, bombs, powerups, bombers, explosion_list, player_index, move_number):
+		'''
 		Called when a move is requested by the game server
 
 		Returns a string which represents the action that the Bomber should carry out in this turn. 
