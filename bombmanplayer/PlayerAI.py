@@ -141,6 +141,14 @@ class PlayerAI():
 			bombMove = True
 			my_bomb_count += 1
 
+		if bombMove:
+			bombs[(my_position[0], my_position[1])] = {
+				'owner' : player_index,
+				'range' : bombers[player_index]['bomb_range'],
+				'time_left': 16
+			}
+			map_list[my_position[0]][my_position[1]] = Enums.MapItems.BOMB
+
 		# there's no where to move to
 		if len(validmoves) == 0: 
 			return Directions['still'].action
@@ -150,7 +158,7 @@ class PlayerAI():
 		awayfrombombmoves = []
 
 		# avoid bombs by maximizing our distance to bomb
-		currentBestDist = 0
+		'''currentBestDist = 0
 		for m in validmoves:
 			x = my_position[0] + m.dx
 			y = my_position[1] + m.dy
@@ -160,8 +168,31 @@ class PlayerAI():
 				awayfrombombmoves = [m]
 				currentBestDist = disttobomb
 			elif disttobomb == currentBestDist:
-				awayfrombombmoves.append(m)
+				awayfrombombmoves.append(m)'''
+		awayfrombombmoves = validmoves
+		currentBestDist = 99999
+		#minimize distance to safe point
+		away_from_bombs_to_safe_moves = []
+		blocation = locationOfNearestBomb(my_position[0], my_position[1], bombs, map_list)
+		if blocation != None:
+			b = bombs[blocation]
+			safepoint = hasEscapeFromBomb(b['range'], b['time_left'], map_list, x, y, blocation[0], blocation[1])
+			print(str(blocation) + ":" + str(safepoint))
+			for m in awayfrombombmoves:
+				x = my_position[0] + m.dx
+				y = my_position[1] + m.dy
 
+				disttoenemy = manhattan_distance((x, y), safepoint)
+				print(str(m) + " " + str(disttoenemy))
+				if disttoenemy < currentBestDist:
+					away_from_bombs_to_safe_moves = [m]
+					currentBestDist = disttoenemy
+				elif disttoenemy == currentBestDist:
+					away_from_bombs_to_safe_moves.append(m)
+
+
+			print(len(awayfrombombmoves) == len(away_from_bombs_to_safe_moves))
+			awayfrombombmoves = away_from_bombs_to_safe_moves
 		towardsenemymoves = []
 		currentBestDist = 99999
 
@@ -183,6 +214,9 @@ class PlayerAI():
 
 		#if len(awayfrombombmoves) > 0:
 		#	move = awayfrombombmoves[random.randrange(0, len(awayfrombombmoves))]
+
+		hasBombEscape = hasEscapeFromBomb(bombers[player_index]['bomb_range'], 15L, map_list, my_position[0] + move.dx,\
+			 my_position[1] + move.dy, my_position[0] + move.dx, my_position[1] + move.dy)
 
 		if bombMove: 
 			return move.bombaction
@@ -302,4 +336,55 @@ def countBombs(bombs):
 		except KeyError:
 			players[bowner] = 1
 	return players
-		
+
+def hasEscapeFromBomb(radius, ticks, map_list, x, y, bombx, bomby):
+	''' 
+	Returns a safe point at which there is a path to get away from the bomb.
+	'''
+	start = (x, y)
+	open_list = [start]
+	visited = []
+
+	while len(open_list) != 0:
+		current = open_list.pop(0)
+
+		for direction in Directions.values():
+			x = current[0] + direction.dx
+			y = current[1] + direction.dy
+
+			if len(open_list) > ticks:
+				continue
+			# to test if we are safe, 
+			we_are_safe = x != bombx and x != bomby or (x == bombx and abs(y - bomby) > radius + 1) or \
+				(y == bomby and abs(x - bombx) > radius + 1)
+
+			if we_are_safe and map_list[x][y] in SAFE_WALKABLE: 
+				return (x, y)
+
+			if (x, y) in visited: 
+				continue
+
+			if map_list[x][y] in SAFE_WALKABLE: 
+				open_list.append((x, y))
+
+			visited.append((x, y))
+
+	return None	
+
+def locationOfNearestBomb(x, y, bombs, block):
+	mindist = 99999
+	minbomb = None
+	for blocation in bombs:
+		b = bombs[blocation]
+		bx = blocation[0]
+		by = blocation[1]
+		brange = b['range']
+		explosionlocs = findPossibleExplosionPoints(blocation, bombs, block)
+		if not (x, y) in explosionlocs:
+			continue
+		# can explode on us
+		distToUs = abs(x - bx) if y == by else abs(y - by)
+		if distToUs < mindist:
+			minbomb = blocation
+			mindist = distToUs
+	return minbomb
