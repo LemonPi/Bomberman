@@ -155,8 +155,28 @@ class PlayerAI():
 			elif disttobomb == currentBestDist:
 				awayfrombombmoves.append(m)
 
-		if len(awayfrombombmoves) > 0:
-			move = awayfrombombmoves[random.randrange(0, len(awayfrombombmoves))]
+		towardsenemymoves = []
+		currentBestDist = 99999
+		enemy_index = 0 if player_index == 1 else 1
+		enemy_position = bombers[enemy_index]['position']
+		# try to get close to the enemy - so minimize distance
+		for m in awayfrombombmoves:
+			x = my_position[0] + m.dx
+			y = my_position[1] + m.dy
+			disttoenemy = manhattan_distance((x, y), enemy_position)
+			if disttoenemy < currentBestDist:
+				towardsenemymoves = [m]
+				currentBestDist = disttoenemy
+			elif disttoenemy == currentBestDist:
+				towardsenemymoves.append(m)
+
+		finalmoves = towardsenemymoves
+
+		if len(finalmoves) > 0:
+			move = finalmoves[random.randrange(0, len(finalmoves))]
+
+		#if len(awayfrombombmoves) > 0:
+		#	move = awayfrombombmoves[random.randrange(0, len(awayfrombombmoves))]
 
 		if bombMove: 
 			return move.bombaction
@@ -197,15 +217,15 @@ class PlayerAI():
 
 		return False
 
-	def manhattan_distance(start, end):
-		'''
-		Returns the Manhattan distance between two points. 
+def manhattan_distance(start, end):
+	'''
+	Returns the Manhattan distance between two points. 
 
-		Args:
-			start: a tuple that represents the coordinates of the start position. 
-			end: a tuple that represents the coordinates of the end postion
-		'''
-		return (abs(start[0]-end[0])+abs(start[1]-end[1]))
+	Args:
+		start: a tuple that represents the coordinates of the start position. 
+		end: a tuple that represents the coordinates of the end postion
+	'''
+	return (abs(start[0]-end[0])+abs(start[1]-end[1]))
 
 def findAllPossibleExplosionPoints(bombs, block):
 	locs = []
