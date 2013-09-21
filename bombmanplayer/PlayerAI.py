@@ -101,6 +101,7 @@ class PlayerAI():
 
 		bombMove = False
 		my_position = bombers[player_index]['position']
+		orig_bombs = bombs.copy()
 
 		# updating the list of blocks
 		for explosion in explosion_list:
@@ -133,6 +134,18 @@ class PlayerAI():
 		# limiting ourselves to one bomb placed at a time for now
 		if len(neighbour_blocks) > 0 and my_bomb_count == 0:
 			bombMove = True
+			bombs[(my_position[0], my_position[1])] = {
+				'owner' : player_index,
+				'range' : bombers[player_index]['bomb_range'],
+				'time_left': 16
+			}
+		validmoves2 = []
+		for m in validmoves:
+			if len(findValidMoves(map_list, x, y, bombs)) > 0:
+				# not trapped by that move
+				validmoves2.append(m)
+
+		validmoves = validmoves2
 
 		# there's no where to move to
 		if len(validmoves) == 0: 
@@ -276,4 +289,21 @@ def countBombs(bombs):
 		except KeyError:
 			players[bowner] = 1
 	return players
-		
+
+def findValidMoves(map_list, xinitial, yinitial, bombs):
+	'''
+	Returns a list of valid directions (not still!) from a given X and Y value.
+	'''
+	validmoves = []
+	for move in Directions.values():
+		if move == STILL:
+			continue
+		x = xinitial + move.dx
+		y = yinitial + move.dy
+
+		# Checks to see if neighbours are walkable, and stores the neighbours which are blocks
+		if map_list[x][y] in SAFE_WALKABLE and not bombs.has_key((x, y)):
+			# walkable is a list in enums.py which indicates what type of tiles are walkable
+			validmoves.append(move)
+	print(len(validmoves))
+	return validmoves
