@@ -133,6 +133,13 @@ class PlayerAI():
 		# limiting ourselves to one bomb placed at a time for now
 		if len(neighbour_blocks) > 0 and my_bomb_count == 0:
 			bombMove = True
+			my_bomb_count += 1
+
+		enemy_index = 0 if player_index == 1 else 1
+		enemy_position = bombers[enemy_index]['position']
+		if my_bomb_count == 0 and manhattan_distance((x, y), enemy_position) < 5:
+			bombMove = True
+			my_bomb_count += 1
 
 		# there's no where to move to
 		if len(validmoves) == 0: 
@@ -157,8 +164,7 @@ class PlayerAI():
 
 		towardsenemymoves = []
 		currentBestDist = 99999
-		enemy_index = 0 if player_index == 1 else 1
-		enemy_position = bombers[enemy_index]['position']
+
 		# try to get close to the enemy - so minimize distance
 		for m in awayfrombombmoves:
 			x = my_position[0] + m.dx
