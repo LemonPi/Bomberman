@@ -5,6 +5,11 @@ from bombmanclient.Client import *
 from Enums import *
 from Direction import *
 
+import sys
+
+# Walkable array with explosions trimmed out, because one does not simply walk into explosions
+SAFE_WALKABLE = [Enums.MapItems.BLANK, Enums.MapItems.POWERUP]
+
 class PlayerAI():
 
 	def __init__(self):
@@ -111,14 +116,22 @@ class PlayerAI():
 			y = my_position[1] + move.dy
 
 			# Checks to see if neighbours are walkable, and stores the neighbours which are blocks
-			if map_list[x][y] in WALKABLE:
+			if map_list[x][y] in SAFE_WALKABLE:
 				# walkable is a list in enums.py which indicates what type of tiles are walkable
 				validmoves.append(move)
 			elif (x, y) in self.blocks: 
 				neighbour_blocks.append((x, y))
 
+		bomb_count_by_player = countBombs(bombs)
+		my_bomb_count = 0
+		try:
+			my_bomb_count = bomb_count_by_player[player_index]
+		except KeyError:
+			pass
+
 		# place a bomb if there are blocks that can be destroyed
-		if len(neighbour_blocks) > 0:
+		# limiting ourselves to one bomb placed at a time for now
+		if len(neighbour_blocks) > 0 and my_bomb_count == 0:
 			bombMove = True
 
 		# there's no where to move to
@@ -127,6 +140,23 @@ class PlayerAI():
 
 		# can move somewhere, so choose a tile randomly
 		move = validmoves[random.randrange(0, len(validmoves))]
+		awayfrombombmoves = []
+
+		# avoid bombs by maximizing our distance to bomb
+		currentBestDist = 0
+		for m in validmoves:
+			x = my_position[0] + m.dx
+			y = my_position[1] + m.dy
+			disttobomb = distToNearestBomb(x, y, bombs, map_list)
+			# print(disttobomb)
+			if disttobomb > currentBestDist:
+				awayfrombombmoves = [m]
+				currentBestDist = disttobomb
+			elif disttobomb == currentBestDist:
+				awayfrombombmoves.append(m)
+
+		if len(awayfrombombmoves) > 0:
+			move = awayfrombombmoves[random.randrange(0, len(awayfrombombmoves))]
 
 		if bombMove: 
 			return move.bombaction
@@ -176,4 +206,74 @@ class PlayerAI():
 			end: a tuple that represents the coordinates of the end postion
 		'''
 		return (abs(start[0]-end[0])+abs(start[1]-end[1]))
+
+def findAllPossibleExplosionPoints(bombs, block):
+	locs = []
+	explosioncanspread = [Enums.MapItems.BLANK, Enums.MapItems.POWERUP, Enums.MapItems.BOMB]
+	for blocation in bombs:
+		b = bombs[blocation]
+		bx = blocation[0]
+		by = blocation[1]
+		brange = b['range']
+		for xr in range(-brange, brange + 1):
+			blockatloc = block[bx + xr][by]
+			if blockatloc in explosioncanspread:
+				locs.append((bx+xr, by))
+		for yr in range(-brange, brange + 1):
+			blockatloc = block[bx][by + yr]
+			if blockatloc in explosioncanspread:
+				locs.append((bx, by+yr))
+	return locs
+
+def findPossibleExplosionPoints(blocation, bombs, block):
+	locs = []
+	explosioncanspread = [Enums.MapItems.BLANK, Enums.MapItems.POWERUP, Enums.MapItems.BOMB]
+	b = bombs[blocation]
+	bx = blocation[0]
+	by = blocation[1]
+	brange = b['range']
+	for xr in range(-brange, brange + 1):
+		try:
+			blockatloc = block[bx + xr][by]
+			if blockatloc in explosioncanspread:
+				locs.append((bx+xr, by))
+		except IndexError:
+			pass
+	for yr in range(-brange, brange + 1):
+		try:
+			blockatloc = block[bx][by + yr]
+			if blockatloc in explosioncanspread:
+				locs.append((bx, by+yr))
+		except IndexError:
+			pass
+	return locs
+
+def distToNearestBomb(x, y, bombs, block):
+	mindist = 99999
+	minbomb = None
+	for blocation in bombs:
+		b = bombs[blocation]
+		bx = blocation[0]
+		by = blocation[1]
+		brange = b['range']
+		explosionlocs = findPossibleExplosionPoints(blocation, bombs, block)
+		if not (x, y) in explosionlocs:
+			continue
+		# can explode on us
+		distToUs = abs(x - bx) if y == by else abs(y - by)
+		if distToUs < mindist:
+			minbomb = blocation
+			mindist = distToUs
+	return mindist
+
+def countBombs(bombs):
+	players = {}
+	for blocation in bombs:
+		b = bombs[blocation]
+		bowner = b['owner']
+		try:
+			players[bowner] += 1
+		except KeyError:
+			players[bowner] = 1
+	return players
 		
