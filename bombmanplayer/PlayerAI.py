@@ -50,6 +50,7 @@ class PlayerAI():
 		'''
 		self.blocks = blocks_list[:]
 		self.has_reached_enemy_lair = False
+		self.lair_to_enter = 0 if player_index == 1 else 1
 
 	def get_move(self, map_list, bombs, powerups, bombers, explosion_list, player_index, move_number):
 		'''
@@ -155,19 +156,23 @@ class PlayerAI():
 
 		enemy_index = 0 if player_index == 1 else 1
 		enemy_position = bombers[enemy_index]['position']
-		enemy_lair_position = enemy_lair_positions[enemy_index]
+		enemy_lair_position = enemy_lair_positions[self.lair_to_enter]
+
+		if my_position == enemy_lair_position:
+			self.lair_to_enter = 0 if self.lair_to_enter == 1 else 1
 
 		path_to_other_lair_exists = path_exists(enemy_lair_position, my_position, map_list)
 		finalmoves = awayfrombombmoves
-		if not self.has_reached_enemy_lair and my_position == enemy_lair_position:
-			self.has_reached_enemy_lair = True
-		if path_to_other_lair_exists and len(self.blocks) > 5 and (not self.has_reached_enemy_lair):
+		if path_to_other_lair_exists and len(self.blocks) > 5:
 			path_to_other_lair = find_path(my_position, enemy_lair_position, map_list)
 			for m in awayfrombombmoves:
 				x = my_position[0] + m.dx
 				y = my_position[1] + m.dy
-				if (x, y) == path_to_other_lair[-1]:
-					finalmoves = [m]
+				try:
+					if (x, y) == path_to_other_lair[-1]:
+						finalmoves = [m]
+				except:
+					pass
 
 
 		else:	# try to get away from the enemy - so maximize distance
