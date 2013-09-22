@@ -141,6 +141,14 @@ class PlayerAI():
 			bombMove = True
 			my_bomb_count += 1
 
+		if bombMove:
+			bombs[(my_position[0], my_position[1])] = {
+				'owner' : player_index,
+				'range' : bombers[player_index]['bomb_range'],
+				'time_left': 16
+			}
+			map_list[my_position[0]][my_position[1]] = Enums.MapItems.BOMB
+
 		# there's no where to move to
 		if len(validmoves) == 0: 
 			return Directions['still'].action
