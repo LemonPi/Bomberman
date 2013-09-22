@@ -207,39 +207,39 @@ class PlayerAI():
 		else: 
 			return move.action
 
-	def path_exists(start, end, map_list):
-		''' 
-		Takes two tuples that represents the starting, ending point and the currenet map to determine if a path between the two points exists on the map. 
+def path_exists(start, end, map_list):
+	''' 
+	Takes two tuples that represents the starting, ending point and the currenet map to determine if a path between the two points exists on the map. 
 
-		returns True if there is a path with no blocks, bombs or walls in it's path between start and end. 
-		returns False otherwise. 
+	returns True if there is a path with no blocks, bombs or walls in it's path between start and end. 
+	returns False otherwise. 
 
-		Args: 
-			start: a tuple which correspond to the starting point of the paths
-			end: a tuple which correspond to the ending point of the path.
-		'''
-		open_list = [start]
-		visited = []
+	Args: 
+		start: a tuple which correspond to the starting point of the paths
+		end: a tuple which correspond to the ending point of the path.
+	'''
+	open_list = [start]
+	visited = []
 
-		while len(open_list) != 0:
-			current = open_list.pop(0)
+	while len(open_list) != 0:
+		current = open_list.pop(0)
 
-			for direction in Directions.values():
-				x = current[0] + direction.dx
-				y = current[1] + direction.dy
+		for direction in Directions.values():
+			x = current[0] + direction.dx
+			y = current[1] + direction.dy
 
-				if (x, y) == end: 
-					return True
+			if (x, y) == end: 
+				return True
 
-				if (x, y) in visited: 
-					continue
+			if (x, y) in visited: 
+				continue
 
-				if map_list[x][y] in walkable: 
-					open_list.append((x, y))
+			if map_list[x][y] in SAFE_WALKABLE: 
+				open_list.append((x, y))
 
-				visited.append((x, y))
+			visited.append((x, y))
 
-		return False
+	return False
 
 def manhattan_distance(start, end):
 	'''
