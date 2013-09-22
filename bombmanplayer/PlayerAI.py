@@ -7,13 +7,19 @@ from Direction import *
 
 import sys
 
+sys.setrecursionlimit(10000)
+
 # Walkable array with explosions trimmed out, because one does not simply walk into explosions
 SAFE_WALKABLE = [Enums.MapItems.BLANK, Enums.MapItems.POWERUP]
+
+enemy_lair_positions = [(1, 1), (15, 15)]
+
 
 class PlayerAI():
 
 	def __init__(self):
 		self.blocks = []
+		self.has_reached_enemy_lair = False
 
 	def new_game(self, map_list, blocks_list, bombers, player_index):
 		'''
@@ -43,6 +49,7 @@ class PlayerAI():
 
 		'''
 		self.blocks = blocks_list[:]
+		self.has_reached_enemy_lair = False
 
 	def get_move(self, map_list, bombs, powerups, bombers, explosion_list, player_index, move_number):
 		'''
@@ -148,21 +155,33 @@ class PlayerAI():
 
 		enemy_index = 0 if player_index == 1 else 1
 		enemy_position = bombers[enemy_index]['position']
+		enemy_lair_position = enemy_lair_positions[enemy_index]
+
+		path_to_other_lair_exists = path_exists(enemy_lair_position, my_position, map_list)
+		finalmoves = awayfrombombmoves
+		if not self.has_reached_enemy_lair and my_position == enemy_lair_position:
+			self.has_reached_enemy_lair = True
+		if path_to_other_lair_exists and len(self.blocks) > 5 and (not self.has_reached_enemy_lair):
+			path_to_other_lair = find_path(my_position, enemy_lair_position, map_list)
+			for m in awayfrombombmoves:
+				x = my_position[0] + m.dx
+				y = my_position[1] + m.dy
+				if (x, y) == path_to_other_lair[-1]:
+					finalmoves = [m]
 
 
+		else:	# try to get away from the enemy - so maximize distance
+			for m in awayfrombombmoves:
+				x = my_position[0] + m.dx
+				y = my_position[1] + m.dy
+				disttoenemy = manhattan_distance((x, y), enemy_position)
+				if disttoenemy > currentBestDist:
+					awayfromenemymoves = [m]
+					currentBestDist = disttoenemy
+				elif disttoenemy == currentBestDist:
+					awayfromenemymoves.append(m)
 
-		# try to get away from the enemy - so maximize distance
-		for m in awayfrombombmoves:
-			x = my_position[0] + m.dx
-			y = my_position[1] + m.dy
-			disttoenemy = manhattan_distance((x, y), enemy_position)
-			if disttoenemy > currentBestDist:
-				awayfromenemymoves = [m]
-				currentBestDist = disttoenemy
-			elif disttoenemy == currentBestDist:
-				awayfromenemymoves.append(m)
-
-		finalmoves = awayfromenemymoves
+			finalmoves = awayfromenemymoves
 
 		if len(finalmoves) > 0:
 			move = finalmoves[random.randrange(0, len(finalmoves))]
@@ -175,39 +194,39 @@ class PlayerAI():
 		else: 
 			return move.action
 
-	def path_exists(start, end, map_list):
-		''' 
-		Takes two tuples that represents the starting, ending point and the currenet map to determine if a path between the two points exists on the map. 
+def path_exists(start, end, map_list):
+	''' 
+	Takes two tuples that represents the starting, ending point and the currenet map to determine if a path between the two points exists on the map. 
 
-		returns True if there is a path with no blocks, bombs or walls in it's path between start and end. 
-		returns False otherwise. 
+	returns True if there is a path with no blocks, bombs or walls in it's path between start and end. 
+	returns False otherwise. 
 
-		Args: 
-			start: a tuple which correspond to the starting point of the paths
-			end: a tuple which correspond to the ending point of the path.
-		'''
-		open_list = [start]
-		visited = []
+	Args: 
+		start: a tuple which correspond to the starting point of the paths
+		end: a tuple which correspond to the ending point of the path.
+	'''
+	open_list = [start]
+	visited = []
 
-		while len(open_list) != 0:
-			current = open_list.pop(0)
+	while len(open_list) != 0:
+		current = open_list.pop(0)
 
-			for direction in Directions.values():
-				x = current[0] + direction.dx
-				y = current[1] + direction.dy
+		for direction in Directions.values():
+			x = current[0] + direction.dx
+			y = current[1] + direction.dy
 
-				if (x, y) == end: 
-					return True
+			if (x, y) == end: 
+				return True
 
-				if (x, y) in visited: 
-					continue
+			if (x, y) in visited: 
+				continue
 
-				if map_list[x][y] in walkable: 
-					open_list.append((x, y))
+			if map_list[x][y] in SAFE_WALKABLE: 
+				open_list.append((x, y))
 
-				visited.append((x, y))
+			visited.append((x, y))
 
-		return False
+	return False
 
 def manhattan_distance(start, end):
 	'''
@@ -218,6 +237,59 @@ def manhattan_distance(start, end):
 		end: a tuple that represents the coordinates of the end postion
 	'''
 	return (abs(start[0]-end[0])+abs(start[1]-end[1]))
+
+def find_path(start, end, map_list):
+	''' Finds the closest path from point a to point b.
+	based on http://theory.stanford.edu/~amitp/game-programming/a-star-flash/Pathfinder.as
+	'''
+	# g = already travelled, h = approx. how much to travel still, 
+	initialobj = {'node': start, 'open': True, 'closed': False, 'parent': None, 'g': 0, 'h': manhattan_distance(start, end), 'f': manhattan_distance(start, end)}
+	bopen = [initialobj]
+	bvisited = {initialobj['node']: initialobj}
+	while len(bopen) > 0:
+		bopen.sort(key=lambda a: a['f']) # sort the array to find the one with the lowest approximate distance to the goal
+		best = bopen.pop(0)
+		best['open'] = False
+		if best['node'] == end: # finished
+			# todo retrace the path
+			
+			return retrace_path(bvisited, best, start)
+		for direction in Directions.values():
+			if direction == STILL:
+				continue
+			x = best['node'][0] + direction.dx
+			y = best['node'][1] + direction.dy
+			if not map_list[x][y] in SAFE_WALKABLE:
+				continue
+			newnode = (x, y)
+			dist = manhattan_distance(best['node'], newnode)
+			nodeobj = None
+			try:
+				nodeobj = bvisited[newnode]
+			except KeyError:
+				nodeobj = {'node': newnode, 'open': False, 'closed': False, 'parent': best, 'g': 999999, 'h': 999999, 'f': 999999}
+				bvisited[newnode] = nodeobj
+			# calculate the new g value - already travelled
+			new_g = best['g'] + dist
+			if new_g < nodeobj['g']: # first time seeing it or new cost is better than old cost (taking different path)
+						# if true, use this path to travel to it
+				if not nodeobj['open']:
+					nodeobj['open'] = True
+					bopen.append(nodeobj)
+				nodeobj['g'] = new_g # update to the shorter value
+				nodeobj['h'] = manhattan_distance(newnode, end)
+				nodeobj['f'] = new_g + nodeobj['h']
+				nodeobj['parent'] = best
+	return None
+
+def retrace_path(bvisited, best, start):
+	path = []
+	curvisited = best
+	while curvisited != None and curvisited['node'] != start:
+		path.append(curvisited['node'])
+		curvisited = curvisited['parent']
+	return path
+
 
 def findAllPossibleExplosionPoints(bombs, block):
 	locs = []
