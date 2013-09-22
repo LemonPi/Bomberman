@@ -251,6 +251,58 @@ def manhattan_distance(start, end):
 	'''
 	return (abs(start[0]-end[0])+abs(start[1]-end[1]))
 
+def find_path(start, end, map_list):
+	''' Finds the closest path from point a to point b.
+	based on http://theory.stanford.edu/~amitp/game-programming/a-star-flash/Pathfinder.as
+	'''
+	# g = already travelled, h = approx. how much to travel still, 
+	initialobj = {'node': start, 'open': True, 'closed': False, 'parent': None, 'g': 0, 'h': manhattan_distance(start, end), 'f': manhattan_distance(start, end)}
+	bopen = [initialobj]
+	bvisited = {initialobj['node']: initialobj}
+	while len(bopen) > 0:
+		bopen.sort(key=lambda a: a['f']) # sort the array to find the one with the lowest approximate distance to the goal
+		best = bopen.pop(0)
+		best['open'] = False
+		if best['node'] == end: # finished
+			# todo retrace the path
+			
+			return retrace_path(bvisited, best, start)
+		for direction in Directions.values():
+			if direction == STILL:
+				continue
+			x = best['node'][0] + direction.dx
+			y = best['node'][1] + direction.dy
+			if not map_list[x][y] in SAFE_WALKABLE:
+				continue
+			newnode = (x, y)
+			dist = manhattan_distance(best['node'], newnode)
+			nodeobj = None
+			try:
+				nodeobj = bvisited[newnode]
+			except KeyError:
+				nodeobj = {'node': newnode, 'open': False, 'closed': False, 'parent': best, 'g': 999999, 'h': 999999, 'f': 999999}
+				bvisited[newnode] = nodeobj
+			# calculate the new g value - already travelled
+			new_g = best['g'] + dist
+			if new_g < nodeobj['g']: # first time seeing it or new cost is better than old cost (taking different path)
+						# if true, use this path to travel to it
+				if not nodeobj['open']:
+					nodeobj['open'] = True
+					bopen.append(nodeobj)
+				nodeobj['g'] = new_g # update to the shorter value
+				nodeobj['h'] = manhattan_distance(newnode, end)
+				nodeobj['f'] = new_g + nodeobj['h']
+				nodeobj['parent'] = best
+	return None
+
+def retrace_path(bvisited, best, start):
+	path = []
+	curvisited = best
+	while curvisited != None and curvisited['node'] != start:
+		path.append(curvisited['node'])
+		curvisited = curvisited['parent']
+	return path
+
 def findAllPossibleExplosionPoints(bombs, block):
 	locs = []
 	explosioncanspread = [Enums.MapItems.BLANK, Enums.MapItems.POWERUP, Enums.MapItems.BOMB]
