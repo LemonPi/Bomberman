@@ -122,25 +122,6 @@ class PlayerAI():
 			elif (x, y) in self.blocks: 
 				neighbour_blocks.append((x, y))
 
-		bomb_count_by_player = countBombs(bombs)
-		my_bomb_count = 0
-		try:
-			my_bomb_count = bomb_count_by_player[player_index]
-		except KeyError:
-			pass
-
-		# place a bomb if there are blocks that can be destroyed
-		# limiting ourselves to one bomb placed at a time for now
-		if len(neighbour_blocks) > 0 and my_bomb_count == 0:
-			bombMove = True
-			my_bomb_count += 1
-
-		enemy_index = 0 if player_index == 1 else 1
-		enemy_position = bombers[enemy_index]['position']
-		if my_bomb_count == 0 and manhattan_distance((x, y), enemy_position) < 5:
-			bombMove = True
-			my_bomb_count += 1
-
 		# there's no where to move to
 		if len(validmoves) == 0: 
 			return Directions['still'].action
@@ -162,21 +143,26 @@ class PlayerAI():
 			elif disttobomb == currentBestDist:
 				awayfrombombmoves.append(m)
 
-		towardsenemymoves = []
-		currentBestDist = 99999
+		awayfromenemymoves = []
+		currentBestDist = 0
 
-		# try to get close to the enemy - so minimize distance
+		enemy_index = 0 if player_index == 1 else 1
+		enemy_position = bombers[enemy_index]['position']
+
+
+
+		# try to get away from the enemy - so maximize distance
 		for m in awayfrombombmoves:
 			x = my_position[0] + m.dx
 			y = my_position[1] + m.dy
 			disttoenemy = manhattan_distance((x, y), enemy_position)
-			if disttoenemy < currentBestDist:
-				towardsenemymoves = [m]
+			if disttoenemy > currentBestDist:
+				awayfromenemymoves = [m]
 				currentBestDist = disttoenemy
 			elif disttoenemy == currentBestDist:
-				towardsenemymoves.append(m)
+				awayfromenemymoves.append(m)
 
-		finalmoves = towardsenemymoves
+		finalmoves = awayfromenemymoves
 
 		if len(finalmoves) > 0:
 			move = finalmoves[random.randrange(0, len(finalmoves))]
