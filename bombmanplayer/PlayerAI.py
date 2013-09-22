@@ -149,6 +149,16 @@ class PlayerAI():
 			}
 			map_list[my_position[0]][my_position[1]] = Enums.MapItems.BOMB
 
+		validmoves2 = []
+		for m in validmoves:
+			x = my_position[0] + m.dx
+			y = my_position[1] + m.dy
+			if len(findValidMoves(map_list, x, y, bombs)) > 0:
+				# not trapped by that move
+				validmoves2.append(m)
+
+		validmoves = validmoves2
+
 		# there's no where to move to
 		if len(validmoves) == 0: 
 			return Directions['still'].action
@@ -310,4 +320,21 @@ def countBombs(bombs):
 		except KeyError:
 			players[bowner] = 1
 	return players
-		
+
+def findValidMoves(map_list, xinitial, yinitial, bombs):
+	'''
+	Returns a list of valid directions (not still!) from a given X and Y value.
+	'''
+	validmoves = []
+	for move in Directions.values():
+		if move == STILL:
+			continue
+		x = xinitial + move.dx
+		y = yinitial + move.dy
+
+		# Checks to see if neighbours are walkable, and stores the neighbours which are blocks
+		if map_list[x][y] in SAFE_WALKABLE and not bombs.has_key((x, y)):
+			# walkable is a list in enums.py which indicates what type of tiles are walkable
+			validmoves.append(move)
+	print(len(validmoves))
+	return validmoves
